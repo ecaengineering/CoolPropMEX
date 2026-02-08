@@ -111,6 +111,15 @@ if(WIN32)
         COMMENT "Copying CoolProp shared library to output directory"
     )
 elseif(APPLE)
+    # Fix for Undefined symbols on macOS arm64 (Apple Silicon)
+    foreach(mex_target PropsSI HAPropsSI AbstractStateMex)
+        target_link_options(${mex_target} PRIVATE 
+            "-Wl,-U,_mexCreateMexFunction" 
+            "-Wl,-U,_mexDestroyMexFunction" 
+            "-Wl,-U,_mexFunctionAdapter"
+            "-Wl,-ld_classic"
+        )
+    endforeach()
     add_custom_command(TARGET PropsSI POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${COOLPROP_SHARED_LIB}"
