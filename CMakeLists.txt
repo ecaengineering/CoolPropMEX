@@ -1,181 +1,106 @@
 cmake_minimum_required(VERSION 3.15)
-project(CoolProp_MATLAB)
+project(CoolPropMEX)
 
-# Set C++ standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find MATLAB
+# ---------------------------------------------------------------------------
+# CoolProp shared library (built from submodule)
+# ---------------------------------------------------------------------------
+set(COOLPROP_SHARED_LIBRARY ON  CACHE BOOL "" FORCE)
+set(COOLPROP_STATIC_LIBRARY OFF CACHE BOOL "" FORCE)
+set(COOLPROP_OBJECT_LIBRARY OFF CACHE BOOL "" FORCE)
+set(COOLPROP_NO_EXAMPLES    ON  CACHE BOOL "" FORCE)
+set(BUILD_TESTING           OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(CoolProp EXCLUDE_FROM_ALL)
+
+# ---------------------------------------------------------------------------
+# MATLAB MEX support
+# ---------------------------------------------------------------------------
 find_package(Matlab REQUIRED COMPONENTS MX_LIBRARY)
 
-# Set root directory
-set(ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
-
-# Set CoolProp library paths based on platform
-if(WIN32)
-    set(COOLPROP_SHARED_LIB "${ROOT_DIR}/build/Release/CoolProp.dll")
-    set(COOLPROP_LIB "${ROOT_DIR}/build/Release/CoolProp.lib")
-elseif(APPLE)
-    set(COOLPROP_SHARED_LIB "${ROOT_DIR}/build/libCoolProp.dylib")
-    set(COOLPROP_LIB "${ROOT_DIR}/build/libCoolProp.dylib")
-else() # Linux
-    set(COOLPROP_SHARED_LIB "${ROOT_DIR}/build/libCoolProp.so")
-    set(COOLPROP_LIB "${ROOT_DIR}/build/libCoolProp.so")
-endif()
-
-# Include directories
-include_directories(
-    ${Matlab_INCLUDE_DIRS}
-    ${ROOT_DIR}/include
-    ${ROOT_DIR}/externals/fmtlib/include
-)
-
-# Create PropsSI MEX file
-matlab_add_mex(
-    NAME PropsSI
-    SRC PropsSI.cpp
-    LINK_TO ${COOLPROP_LIB}
-)
-
-# Add compiler flags
-if(MSVC)
-    target_compile_options(PropsSI PRIVATE /utf-8)
-elseif(UNIX)
-    target_compile_options(PropsSI PRIVATE -fPIC)
-endif()
-
-# Set output directory
-set_target_properties(PropsSI PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-)
-
-# Create HAPropsSI MEX file
-matlab_add_mex(
-    NAME HAPropsSI
-    SRC HAPropsSI.cpp
-    LINK_TO ${COOLPROP_LIB}
-)
-
-# Add compiler flags
-if(MSVC)
-    target_compile_options(HAPropsSI PRIVATE /utf-8)
-elseif(UNIX)
-    target_compile_options(HAPropsSI PRIVATE -fPIC)
-endif()
-
-# Set output directory
-set_target_properties(HAPropsSI PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-)
-
-# Create AbstractStateMex MEX file
-matlab_add_mex(
-    NAME AbstractStateMex
-    SRC AbstractStateMex.cpp
-    LINK_TO ${COOLPROP_LIB}
-)
-
-# Add compiler flags
-if(MSVC)
-    target_compile_options(AbstractStateMex PRIVATE /utf-8)
-elseif(UNIX)
-    target_compile_options(AbstractStateMex PRIVATE -fPIC)
-endif()
-
-# Set output directory
-set_target_properties(AbstractStateMex PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-)
-
-# Copy CoolProp shared library to output directory
-if(WIN32)
-    add_custom_command(TARGET PropsSI POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${COOLPROP_SHARED_LIB}"
-        $<TARGET_FILE_DIR:PropsSI>
-        COMMENT "Copying CoolProp shared library to output directory"
+# ---------------------------------------------------------------------------
+# Helper macro: create one MEX target
+# ---------------------------------------------------------------------------
+macro(add_mex_target MEX_NAME)
+    matlab_add_mex(
+        NAME    ${MEX_NAME}
+        SRC     src/${MEX_NAME}.cpp
+        LINK_TO CoolProp
     )
-    add_custom_command(TARGET HAPropsSI POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${COOLPROP_SHARED_LIB}"
-        $<TARGET_FILE_DIR:HAPropsSI>
-        COMMENT "Copying CoolProp shared library to output directory"
-    )
-    add_custom_command(TARGET AbstractStateMex POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${COOLPROP_SHARED_LIB}"
-        $<TARGET_FILE_DIR:AbstractStateMex>
-        COMMENT "Copying CoolProp shared library to output directory"
-    )
-elseif(APPLE)
-    # Fix for Undefined symbols on macOS arm64 (Apple Silicon)
-    foreach(mex_target PropsSI HAPropsSI AbstractStateMex)
-        target_link_options(${mex_target} PRIVATE 
-            "-Wl,-U,_mexCreateMexFunction" 
-            "-Wl,-U,_mexDestroyMexFunction" 
+
+    # Compiler flags
+    if(MSVC)
+        target_compile_options(${MEX_NAME} PRIVATE /utf-8)
+    else()
+        target_compile_options(${MEX_NAME} PRIVATE -fPIC)
+    endif()
+
+    # Apple Silicon: resolve weak MATLAB symbols at link time
+    if(APPLE)
+        target_link_options(${MEX_NAME} PRIVATE
+            "-Wl,-U,_mexCreateMexFunction"
+            "-Wl,-U,_mexDestroyMexFunction"
             "-Wl,-U,_mexFunctionAdapter"
             "-Wl,-ld_classic"
         )
-    endforeach()
-    add_custom_command(TARGET PropsSI POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${COOLPROP_SHARED_LIB}"
-        $<TARGET_FILE_DIR:PropsSI>
-        COMMENT "Copying CoolProp shared library to output directory"
-    )
-    add_custom_command(TARGET HAPropsSI POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${COOLPROP_SHARED_LIB}"
-        $<TARGET_FILE_DIR:HAPropsSI>
-        COMMENT "Copying CoolProp shared library to output directory"
-    )
-    add_custom_command(TARGET AbstractStateMex POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${COOLPROP_SHARED_LIB}"
-        $<TARGET_FILE_DIR:AbstractStateMex>
-        COMMENT "Copying CoolProp shared library to output directory"
-    )
-else() # Linux
-    # Set RPATH to find shared library at runtime
-    set_target_properties(PropsSI PROPERTIES
-        BUILD_WITH_INSTALL_RPATH TRUE
-        INSTALL_RPATH "$ORIGIN"
-    )
-    set_target_properties(HAPropsSI PROPERTIES
-        BUILD_WITH_INSTALL_RPATH TRUE
-        INSTALL_RPATH "$ORIGIN"
-    )
-    set_target_properties(AbstractStateMex PROPERTIES
-        BUILD_WITH_INSTALL_RPATH TRUE
-        INSTALL_RPATH "$ORIGIN"
-    )
-    add_custom_command(TARGET PropsSI POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${COOLPROP_SHARED_LIB}"
-        $<TARGET_FILE_DIR:PropsSI>
-        COMMENT "Copying CoolProp shared library to output directory"
-    )
-    add_custom_command(TARGET HAPropsSI POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${COOLPROP_SHARED_LIB}"
-        $<TARGET_FILE_DIR:HAPropsSI>
-        COMMENT "Copying CoolProp shared library to output directory"
-    )
-    add_custom_command(TARGET AbstractStateMex POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${COOLPROP_SHARED_LIB}"
-        $<TARGET_FILE_DIR:AbstractStateMex>
-        COMMENT "Copying CoolProp shared library to output directory"
-    )
-endif()
+    endif()
 
-# Copy MATLAB helper class to output directory
+    # Linux: embed RPATH so the .so is found next to the .mexa64
+    if(UNIX AND NOT APPLE)
+        set_target_properties(${MEX_NAME} PROPERTIES
+            BUILD_WITH_INSTALL_RPATH TRUE
+            INSTALL_RPATH            "$ORIGIN"
+        )
+    endif()
+
+    # Output all MEX files to Release/ at the repo root
+    set_target_properties(${MEX_NAME} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY                "${CMAKE_SOURCE_DIR}/Release"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_SOURCE_DIR}/Release"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_SOURCE_DIR}/Release"
+        LIBRARY_OUTPUT_DIRECTORY                "${CMAKE_SOURCE_DIR}/Release"
+        LIBRARY_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_SOURCE_DIR}/Release"
+        LIBRARY_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_SOURCE_DIR}/Release"
+    )
+
+    # Post-build: copy CoolProp shared library next to the MEX file
+    if(WIN32)
+        add_custom_command(TARGET ${MEX_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:CoolProp>
+                "${CMAKE_SOURCE_DIR}/Release/"
+            COMMENT "Copying CoolProp.dll to Release/"
+        )
+    elseif(APPLE)
+        add_custom_command(TARGET ${MEX_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:CoolProp>
+                "${CMAKE_SOURCE_DIR}/Release/"
+            COMMENT "Copying libCoolProp.dylib to Release/"
+        )
+    else()
+        add_custom_command(TARGET ${MEX_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:CoolProp>
+                "${CMAKE_SOURCE_DIR}/Release/"
+            COMMENT "Copying libCoolProp.so to Release/"
+        )
+    endif()
+endmacro()
+
+# ---------------------------------------------------------------------------
+# MEX targets
+# ---------------------------------------------------------------------------
+add_mex_target(PropsSI)
+add_mex_target(HAPropsSI)
+add_mex_target(AbstractStateMex)
+
+# Copy AbstractState.m to Release/ (only needs to happen once, tie to AbstractStateMex)
 add_custom_command(TARGET AbstractStateMex POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_CURRENT_SOURCE_DIR}/AbstractState.m"
-    $<TARGET_FILE_DIR:AbstractStateMex>
-    COMMENT "Copying AbstractState.m to output directory"
+        "${CMAKE_SOURCE_DIR}/matlab/AbstractState.m"
+        "${CMAKE_SOURCE_DIR}/Release/"
+    COMMENT "Copying AbstractState.m to Release/"
 )

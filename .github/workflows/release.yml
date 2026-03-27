@@ -1,0 +1,144 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Verify the pushed tag matches the CoolProp submodule version
+  # ---------------------------------------------------------------------------
+  verify-version:
+    name: Verify tag matches CoolProp version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Check tag matches CoolProp version
+        shell: bash
+        run: |
+          # Extract version numbers from CoolProp/CMakeLists.txt
+          MAJOR=$(grep -m1 'set(COOLPROP_VERSION_MAJOR' CoolProp/CMakeLists.txt | grep -o '[0-9]\+')
+          MINOR=$(grep -m1 'set(COOLPROP_VERSION_MINOR' CoolProp/CMakeLists.txt | grep -o '[0-9]\+')
+          PATCH=$(grep -m1 'set(COOLPROP_VERSION_PATCH' CoolProp/CMakeLists.txt | grep -o '[0-9]\+')
+          COOLPROP_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          PUSHED_TAG="${{ github.ref_name }}"
+          echo "CoolProp submodule version : ${COOLPROP_TAG}"
+          echo "Pushed tag                 : ${PUSHED_TAG}"
+          if [ "${PUSHED_TAG}" != "${COOLPROP_TAG}" ]; then
+            echo "ERROR: tag '${PUSHED_TAG}' does not match CoolProp submodule version '${COOLPROP_TAG}'."
+            echo "Update the CoolProp submodule to the matching release before tagging."
+            exit 1
+          fi
+          echo "Tag matches CoolProp version — proceeding."
+
+  # ---------------------------------------------------------------------------
+  # Build MEX files on each platform in parallel
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build (${{ matrix.os }})
+    needs: verify-version
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: windows
+            coolprop_lib: CoolProp.dll
+          - os: ubuntu-latest
+            artifact_name: linux
+            coolprop_lib: libCoolProp.so
+          - os: macos-latest
+            artifact_name: macos
+            coolprop_lib: libCoolProp.dylib
+
+    steps:
+      - name: Check out repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Install MATLAB — provides mex.h headers and shared libs needed by
+      # CMake's find_package(Matlab). No license token required for public repos.
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v2
+        with:
+          cache: true
+
+      # Python is required by CoolProp's CMake to run generate_headers.py
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Configure (CMake)
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (CoolProp shared lib + all MEX targets)
+        run: cmake --build build --config Release --parallel
+
+      - name: List Release/ output
+        shell: bash
+        run: ls -lh Release/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CoolPropMEX-${{ matrix.artifact_name }}
+          path: Release/
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Collect all platform artifacts and publish a GitHub Release
+  # ---------------------------------------------------------------------------
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: CoolPropMEX-windows
+          path: artifacts/windows
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: CoolPropMEX-linux
+          path: artifacts/linux
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: CoolPropMEX-macos
+          path: artifacts/macos
+
+      - name: Zip platform bundles
+        run: |
+          cd artifacts
+          zip -r ../CoolPropMEX-${{ github.ref_name }}-windows.zip windows/
+          zip -r ../CoolPropMEX-${{ github.ref_name }}-linux.zip   linux/
+          zip -r ../CoolPropMEX-${{ github.ref_name }}-macos.zip   macos/
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            CoolPropMEX-${{ github.ref_name }}-windows.zip \
+            CoolPropMEX-${{ github.ref_name }}-linux.zip \
+            CoolPropMEX-${{ github.ref_name }}-macos.zip \
+            --repo "${{ github.repository }}" \
+            --title "CoolPropMEX ${{ github.ref_name }}" \
+            --generate-notes

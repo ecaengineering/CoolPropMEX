@@ -1,6 +1,6 @@
-# CoolProp MATLAB Wrapper
+# CoolProp MATLAB MEX Wrapper
 
-This folder contains the MATLAB MEX wrappers for CoolProp, providing both high-level and low-level interfaces.
+MATLAB MEX wrappers for [CoolProp v7.2.0](https://github.com/CoolProp/CoolProp), providing high-level and low-level thermophysical property interfaces. CoolProp is included as a git submodule and compiled together with the MEX files in a single build step.
 
 ## Features
 
@@ -8,304 +8,328 @@ This folder contains the MATLAB MEX wrappers for CoolProp, providing both high-l
 - **HAPropsSI** - High-level interface for humid air properties
 - **AbstractState** - Low-level interface for advanced calculations (mixtures, derivatives, etc.)
 
-## Building the MEX Functions
+## Repository Structure
 
-### Prerequisites
-- MATLAB (R2015b or later recommended)
-- CMake (version 3.15 or later)
-- C++ compiler compatible with your MATLAB version
-- CoolProp library built in `..\..\build\Release\`
-
-### Build Instructions
-
-1. Compile CoolProp as Shared Library as explained in [documentation](https://coolprop.org/coolprop/wrappers/SharedLibrary/index.html). 
-
-2. Copy this project to the following directory:
-   ```powershell
-   $COOLPROP_ROOT$\wrappers\MATLAB
-   ```
-
-3. Create a build directory and run CMake:
-   ```powershell
-   mkdir build
-   cd build
-   cmake ..
-   cmake --build . --config Release
-   ```
-
-4. The compiled MEX files will be in the `Release` folder along with `CoolProp.dll`:
-   - `PropsSI.mexw64` - Pure fluid properties
-   - `HAPropsSI.mexw64` - Humid air properties
-   - `AbstractStateMex.mexw64` - Low-level interface MEX function
-   - `AbstractState.m` - MATLAB class for AbstractState
-
-## Using the MEX Functions in MATLAB
-
-### Setup
-Add the Release folder to your MATLAB path:
-```matlab
-addpath('$COOLPROP_ROOT$\wrappers\MATLAB\Release')
 ```
-Replace `$COOLPROP_ROOT$` with your path
+CoolPropMEX/
+├── CoolProp/          # CoolProp v7.2.0 (git submodule)
+├── src/               # MEX C++ source files
+│   ├── PropsSI.cpp
+│   ├── HAPropsSI.cpp
+│   └── AbstractStateMex.cpp
+├── matlab/            # MATLAB files
+│   ├── AbstractState.m
+│   └── test_coolprop.m
+├── CMakeLists.txt     # Builds CoolProp + MEX in one pass
+└── .github/workflows/
+    └── release.yml    # CI/CD: builds and releases on tag push
+```
 
 ---
 
-## PropsSI - Pure and Pseudo-Pure Fluid Properties
+## Installation (Pre-built Binaries)
 
-### Function Syntax
+Download the latest release for your platform from the [Releases](../../releases) page:
+
+| File | Platform |
+|---|---|
+| `CoolPropMEX-vX.Y.Z-windows.zip` | Windows 64-bit (`.mexw64`) |
+| `CoolPropMEX-vX.Y.Z-linux.zip` | Linux 64-bit (`.mexa64`) |
+| `CoolPropMEX-vX.Y.Z-macos.zip` | macOS (`.mexmaci64`) |
+
+Each zip contains the three MEX files, the CoolProp shared library, and `AbstractState.m`. Unzip and add the folder to your MATLAB path:
+
+```matlab
+addpath('/path/to/unzipped/folder')
+```
+
+---
+
+## Building from Source
+
+### Prerequisites
+
+- MATLAB R2021a or later
+- CMake 3.15 or later
+- A C++17-compatible compiler (MSVC 2019+, GCC 9+, Clang 11+)
+- Python 3 (required by CoolProp's build system to generate headers)
+- Git
+
+### 1. Clone with submodules
+
+```bash
+git clone --recurse-submodules https://github.com/luzechao/CoolPropMEX.git
+cd CoolPropMEX
+```
+
+If you already cloned without `--recurse-submodules`:
+
+```bash
+git submodule update --init --recursive
+```
+
+### 2. Build
+
+```bash
+mkdir build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release --parallel
+```
+
+### 3. Output
+
+All compiled files are placed in `Release/` at the repo root:
+
+| File | Description |
+|---|---|
+| `PropsSI.mex*` | Pure fluid properties MEX |
+| `HAPropsSI.mex*` | Humid air properties MEX |
+| `AbstractStateMex.mex*` | Low-level AbstractState MEX |
+| `CoolProp.dll` / `libCoolProp.so` / `libCoolProp.dylib` | CoolProp shared library |
+| `AbstractState.m` | MATLAB OOP wrapper class |
+
+The `.mex*` extension is platform-specific: `.mexw64` (Windows), `.mexa64` (Linux), `.mexmaci64` (macOS).
+
+### 4. Add to MATLAB path
+
+```matlab
+addpath('/path/to/CoolPropMEX/Release')
+```
+
+---
+
+## Releases (CI/CD)
+
+Releases are built automatically via GitHub Actions on every version tag push. **The tag must match the CoolProp submodule version** — e.g. if the `CoolProp/` submodule is pinned to v7.2.0, the tag must be `v7.2.0`. The workflow enforces this and fails immediately if they do not match.
+
+### To release for a new CoolProp version
+
+1. Update the submodule to the new CoolProp tag:
+   ```bash
+   cd CoolProp
+   git fetch --depth 1 origin tag v7.3.0
+   git checkout v7.3.0
+   cd ..
+   git add CoolProp
+   git commit -m "update CoolProp submodule to v7.3.0"
+   ```
+
+2. Push the matching version tag:
+   ```bash
+   git tag v7.3.0
+   git push origin main v7.3.0
+   ```
+
+The workflow builds Windows, Linux, and macOS artifacts in parallel, verifies the tag matches the submodule version, then publishes a GitHub Release with all three platform zips attached.
+
+---
+
+## PropsSI — Pure and Pseudo-Pure Fluid Properties
+
+### Syntax
+
 ```matlab
 result = PropsSI(Output, Name1, Prop1, Name2, Prop2, FluidName)
 ```
 
 **Parameters:**
-- `Output` (string): The output property to calculate (e.g., 'D' for density, 'H' for enthalpy)
-- `Name1` (string): Name of first input property (e.g., 'T' for temperature, 'P' for pressure)
-- `Prop1` (double): Value of first input property
-- `Name2` (string): Name of second input property
-- `Prop2` (double): Value of second input property
-- `FluidName` (string): Name of the fluid (e.g., 'Water', 'Air', 'R134a')
+- `Output` (string): Output property (e.g., `'D'` for density, `'H'` for enthalpy)
+- `Name1` (string): First input property name (e.g., `'T'`, `'P'`)
+- `Prop1` (double): First input property value
+- `Name2` (string): Second input property name
+- `Prop2` (double): Second input property value
+- `FluidName` (string): Fluid name (e.g., `'Water'`, `'Air'`, `'R134a'`)
 
-**Returns:**
-- `result` (double): The calculated property value
+**Returns:** `result` (double)
 
 ### Examples
 
 ```matlab
-% Get density of water at 101325 Pa and 300 K
+% Density of water at 300 K, 101325 Pa
 rho = PropsSI('D', 'T', 300, 'P', 101325, 'Water')
 % Returns: 996.56 kg/m³
 
-% Get enthalpy of R134a at 101325 Pa and 300 K
+% Enthalpy of R134a at 300 K, 101325 Pa
 h = PropsSI('H', 'T', 300, 'P', 101325, 'R134a')
 % Returns: 452080 J/kg
 
-% Get temperature of water at 101325 Pa with quality = 0 (saturated liquid)
+% Saturation temperature of water at 101325 Pa
 T_sat = PropsSI('T', 'P', 101325, 'Q', 0, 'Water')
 % Returns: 373.12 K
 
-% Get critical temperature of CO2
+% Critical temperature of CO2
 T_crit = PropsSI('Tcrit', 'P', 0, 'T', 0, 'CO2')
 % Returns: 304.13 K
 ```
 
 ### Common Property Keys
 
-**Input/Output Properties:**
+**Input/Output:**
 - `T` - Temperature [K]
 - `P` - Pressure [Pa]
 - `D` - Density [kg/m³]
 - `H` - Enthalpy [J/kg]
 - `S` - Entropy [J/kg/K]
-- `Q` - Quality (vapor fraction) [0-1]
+- `Q` - Vapor quality [0–1]
 - `U` - Internal energy [J/kg]
 
-**Fluid Properties (Output only):**
+**Output only:**
 - `Tcrit` - Critical temperature [K]
 - `Pcrit` - Critical pressure [Pa]
 - `C` - Speed of sound [m/s]
 - `V` - Viscosity [Pa·s]
 - `L` - Thermal conductivity [W/m/K]
 
-For a complete list of properties, see the [CoolProp documentation](http://www.coolprop.org/coolprop/HighLevelAPI.html#parameter-table).
+For the full list see the [CoolProp documentation](http://www.coolprop.org/coolprop/HighLevelAPI.html#parameter-table).
 
 ---
 
-## HAPropsSI - Humid Air Properties
+## HAPropsSI — Humid Air Properties
 
-### Function Syntax
+### Syntax
+
 ```matlab
 result = HAPropsSI(Output, Name1, Prop1, Name2, Prop2, Name3, Prop3)
 ```
 
-**Parameters:**
-- `Output` (string): The output property to calculate (e.g., 'H' for enthalpy, 'T' for temperature)
-- `Name1` (string): Name of first input property (e.g., 'T', 'P', 'R', 'B')
-- `Prop1` (double): Value of first input property
-- `Name2` (string): Name of second input property
-- `Prop2` (double): Value of second input property
-- `Name3` (string): Name of third input property (usually 'P' for pressure)
-- `Prop3` (double): Value of third input property
-
-**Returns:**
-- `result` (double): The calculated property value
-
 ### Humid Air Property Keys
 
-**Input/Output Properties:**
 - `T` - Dry bulb temperature [K]
 - `P` - Pressure [Pa]
-- `R` - Relative humidity [0-1]
+- `R` - Relative humidity [0–1]
 - `B` - Wet bulb temperature [K]
 - `D` - Dew point temperature [K]
 - `W` - Humidity ratio [kg water/kg dry air]
 - `H` - Enthalpy per kg dry air [J/kg]
 - `S` - Entropy per kg dry air [J/kg/K]
 - `V` - Specific volume [m³/kg dry air]
-- `Vda` - Mixture specific volume per kg dry air [m³/kg]
-- `Vha` - Mixture specific volume per kg humid air [m³/kg]
 
-### Humid Air Examples
+### Examples
 
 ```matlab
-% Get enthalpy of humid air at 25°C, 50% RH, and 101325 Pa
+% Enthalpy of humid air at 25°C, 50% RH, 101325 Pa
 h = HAPropsSI('H', 'T', 298.15, 'R', 0.5, 'P', 101325)
 % Returns: ~50800 J/kg_dry_air
 
-% Get dew point at 25°C, 50% RH, and 101325 Pa
+% Dew point at 25°C, 50% RH, 101325 Pa
 T_dp = HAPropsSI('D', 'T', 298.15, 'R', 0.5, 'P', 101325)
 % Returns: ~287.4 K (14.3°C)
 
-% Get humidity ratio at 25°C, 50% RH, and 101325 Pa
+% Humidity ratio at 25°C, 50% RH, 101325 Pa
 W = HAPropsSI('W', 'T', 298.15, 'R', 0.5, 'P', 101325)
 % Returns: ~0.0099 kg_water/kg_dry_air
 
-% Get wet bulb temperature at 25°C, 50% RH, and 101325 Pa
+% Wet bulb temperature at 25°C, 50% RH, 101325 Pa
 T_wb = HAPropsSI('B', 'T', 298.15, 'R', 0.5, 'P', 101325)
 % Returns: ~291.4 K (18.3°C)
-
-% Get relative humidity from temperature and humidity ratio
-RH = HAPropsSI('R', 'T', 298.15, 'W', 0.01, 'P', 101325)
-% Returns: ~0.506 (50.6%)
 ```
-
-**Note:** Pressure (P) is typically specified as the third input for humid air calculations.
 
 ---
 
-## AbstractState - Low-Level Interface
+## AbstractState — Low-Level Interface
 
-The AbstractState interface provides advanced functionality including:
-- Mixture property calculations
-- Phase specification
-- Partial derivatives
-- More control over calculations
+Provides advanced functionality: mixture calculations, phase specification, partial derivatives.
 
-### Using the Helper Class (Recommended)
-
-The `AbstractState` class provides an easy-to-use object-oriented interface:
+### Using the OOP wrapper (recommended)
 
 ```matlab
 % Create a state object
 state = AbstractState('HEOS', 'Water');
 
-% Update state with pressure and temperature
+% Update state at P = 101325 Pa, T = 300 K
 state.update(AbstractState.PT_INPUTS, 101325, 300);
 
-% Get properties
-rho = state.rhomass()      % Mass density [kg/m³]
-h = state.hmass()          % Mass enthalpy [J/kg]
-s = state.smass()          % Mass entropy [J/kg/K]
-cp = state.cpmass()        % Mass cp [J/kg/K]
-visc = state.viscosity()   % Viscosity [Pa·s]
-cond = state.conductivity() % Thermal conductivity [W/m/K]
+% Retrieve properties
+rho  = state.rhomass()       % Mass density [kg/m³]
+h    = state.hmass()         % Mass enthalpy [J/kg]
+s    = state.smass()         % Mass entropy [J/kg/K]
+cp   = state.cpmass()        % Isobaric heat capacity [J/kg/K]
+visc = state.viscosity()     % Dynamic viscosity [Pa·s]
+cond = state.conductivity()  % Thermal conductivity [W/m/K]
 
-% The destructor automatically frees the C++ object
+% Destructor frees the underlying C++ object automatically
 clear state
 ```
 
-### Input Pair Constants
+### Common input pair constants
 
-Common input pairs available in `AbstractState`:
-- `PT_INPUTS` - Pressure [Pa], Temperature [K]
-- `DmassT_INPUTS` - Mass density [kg/m³], Temperature [K]
-- `HmassP_INPUTS` - Mass enthalpy [J/kg], Pressure [Pa]
-- `PSmass_INPUTS` - Pressure [Pa], Mass entropy [J/kg/K]
-- `PQ_INPUTS` - Pressure [Pa], Quality [0-1]
-- `QT_INPUTS` - Quality [0-1], Temperature [K]
+| Constant | Inputs |
+|---|---|
+| `PT_INPUTS` | Pressure [Pa], Temperature [K] |
+| `DmassT_INPUTS` | Mass density [kg/m³], Temperature [K] |
+| `HmassP_INPUTS` | Mass enthalpy [J/kg], Pressure [Pa] |
+| `PSmass_INPUTS` | Pressure [Pa], Mass entropy [J/kg/K] |
+| `PQ_INPUTS` | Pressure [Pa], Vapor quality [0–1] |
+| `QT_INPUTS` | Vapor quality [0–1], Temperature [K] |
 
-### Mixture Example
+### Mixture example
 
 ```matlab
-% Create a mixture state
 state = AbstractState('HEOS', 'Methane&Ethane');
-
-% Set mole fractions (50% methane, 50% ethane)
-state.set_fractions([0.5, 0.5]);
-
-% Update and get properties
+state.set_fractions([0.5, 0.5]);  % 50% methane, 50% ethane (mole fractions)
 state.update(AbstractState.PT_INPUTS, 101325, 300);
 rho = state.rhomass()
-h = state.hmass()
-
-% Check mole fractions
-fracs = state.get_mole_fractions()
+h   = state.hmass()
 ```
 
-### Using the Low-Level MEX Interface Directly
-
-For advanced users, you can call the MEX function directly:
+### Low-level MEX interface (advanced)
 
 ```matlab
 % Create state
 handle = AbstractStateMex('create', 'HEOS', 'Water');
 
-% Update state
-AbstractStateMex('update', handle, 8, 101325, 300);  % 8 = PT_INPUTS
+% Update state (8 = PT_INPUTS)
+AbstractStateMex('update', handle, 8, 101325, 300);
 
-% Get output (iDmass = 11 for mass density)
+% Get mass density (iDmass = 11)
 rho = AbstractStateMex('keyed_output', handle, 11);
 
-% Free the state when done
+% Free state
 AbstractStateMex('free', handle);
 ```
 
-Available commands:
-- `create` - Create new state
-- `free` - Free state
-- `update` - Update state with input pair
-- `keyed_output` - Get property by key
-- `set_fractions` - Set mole fractions
-- `get_mole_fractions` - Get mole fractions
-- `specify_phase` - Force phase (liquid/gas)
-- `unspecify_phase` - Remove phase specification
-- `backend_name` - Get backend name
-- `fluid_names` - Get fluid names
-
-**Note:** Pressure (P) is typically specified as the third input for humid air calculations.
+Available commands: `create`, `free`, `update`, `keyed_output`, `set_fractions`, `get_mole_fractions`, `specify_phase`, `unspecify_phase`, `backend_name`, `fluid_names`.
 
 ---
 
 ## Error Handling
 
-The MEX function will throw MATLAB errors for:
-- Incorrect number of input/output arguments
-- Invalid input types (non-string or non-numeric where expected)
-- CoolProp exceptions (e.g., invalid fluid name, out-of-range conditions)
+The MEX functions throw MATLAB errors for invalid arguments or CoolProp exceptions:
 
-Example:
 ```matlab
 try
-    rho = PropsSI('D', 'T', 300, 'P', 101325, 'InvalidFluid')
+    rho = PropsSI('D', 'T', 300, 'P', 101325, 'InvalidFluid');
 catch e
     fprintf('Error: %s\n', e.message)
 end
 ```
 
-## Files
-
-- `PropsSI.cpp` - PropsSI MEX source code
-- `HAPropsSI.cpp` - HAPropsSI MEX source code
-- `AbstractStateMex.cpp` - AbstractState MEX source code
-- `AbstractState.m` - Object-oriented wrapper for AbstractState
-- `CMakeLists.txt` - CMake build configuration
-- `Release/PropsSI.mexw64` - Compiled PropsSI MEX function (Windows 64-bit)
-- `Release/HAPropsSI.mexw64` - Compiled HAPropsSI MEX function (Windows 64-bit)
-- `Release/AbstractStateMex.mexw64` - Compiled AbstractState MEX function (Windows 64-bit)
-- `Release/CoolProp.dll` - CoolProp shared library
+---
 
 ## Troubleshooting
 
-**Problem:** MEX file not found
-- Make sure you've added the `Release` folder to your MATLAB path
+**MEX file not found**
+- Add the `Release/` folder to your MATLAB path: `addpath('/path/to/Release')`
 
-**Problem:** Cannot load library
-- Ensure `CoolProp.dll` is in the same directory as the MEX files
+**Cannot load shared library**
+- Ensure the CoolProp shared library (`CoolProp.dll` / `libCoolProp.so` / `libCoolProp.dylib`) is in the same folder as the MEX files
 
-**Problem:** Build fails
-- Verify CoolProp library exists in `..\..\build\Release\`
-- Check that your C++ compiler is compatible with your MATLAB version
-- Run `mex -setup` in MATLAB to configure the compiler
+**Build fails — MATLAB not found**
+- CMake uses `find_package(Matlab)`. Ensure MATLAB is installed and either on `PATH` or set `Matlab_ROOT_DIR`:
+  ```bash
+  cmake -S . -B build -DMatlab_ROOT_DIR="/usr/local/MATLAB/R2024a"
+  ```
+
+**Build fails — Python not found**
+- CoolProp requires Python 3 to generate headers during configuration. Install Python 3 and ensure it is on `PATH`.
+
+**Build fails — submodules missing**
+- Run `git submodule update --init --recursive` to populate the `CoolProp/` submodule and its dependencies.
+
+---
 
 ## License
 
-CoolProp is licensed under the MIT License. See the root directory LICENSE file for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+CoolProp is also MIT licensed. See [CoolProp/LICENSE](CoolProp/LICENSE).
