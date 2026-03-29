@@ -124,6 +124,27 @@ jobs:
           name: CoolPropMEX-macos
           path: artifacts/macos
 
+      # GitHub Actions artifact upload does not preserve symlinks.
+      # Recreate the soname and linker-name symlinks for the Linux .so so that
+      # the dynamic linker can find libCoolProp.so.7 (the soname baked into the
+      # MEX files) when users extract the zip.
+      - name: Recreate libCoolProp symlinks in Linux artifact
+        run: |
+          cd artifacts/linux
+          VERSIONED=$(ls libCoolProp.so.*.* 2>/dev/null | head -n1)
+          if [ -z "$VERSIONED" ]; then
+            echo "ERROR: could not find versioned libCoolProp.so in linux artifact"
+            ls -lh .
+            exit 1
+          fi
+          echo "Versioned file: $VERSIONED"
+          # Extract major version for soname (e.g. libCoolProp.so.7.2.0 -> libCoolProp.so.7)
+          MAJOR=$(echo "$VERSIONED" | grep -oP 'libCoolProp\.so\.\K[0-9]+')
+          SONAME="libCoolProp.so.${MAJOR}"
+          echo "Creating symlinks: $SONAME -> $VERSIONED  and  libCoolProp.so -> $VERSIONED"
+          ln -sf "$VERSIONED" "$SONAME"
+          ln -sf "$VERSIONED" libCoolProp.so
+
       - name: Zip platform bundles
         run: |
           cd artifacts

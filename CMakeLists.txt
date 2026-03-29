@@ -81,11 +81,20 @@ macro(add_mex_target MEX_NAME)
             COMMENT "Copying libCoolProp.dylib to Release/"
         )
     else()
+        # Copy the versioned .so (e.g. libCoolProp.so.7.2.0) and create the
+        # soname symlink (libCoolProp.so.7) beside it so that the dynamic
+        # linker can resolve it when MATLAB loads the MEX file from that dir.
         add_custom_command(TARGET ${MEX_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 $<TARGET_FILE:CoolProp>
                 "${CMAKE_SOURCE_DIR}/Release/"
-            COMMENT "Copying libCoolProp.so to Release/"
+            COMMAND ${CMAKE_COMMAND} -E create_symlink
+                $<TARGET_FILE_NAME:CoolProp>
+                "${CMAKE_SOURCE_DIR}/Release/$<TARGET_SONAME_FILE_NAME:CoolProp>"
+            COMMAND ${CMAKE_COMMAND} -E create_symlink
+                $<TARGET_FILE_NAME:CoolProp>
+                "${CMAKE_SOURCE_DIR}/Release/$<TARGET_LINKER_FILE_NAME:CoolProp>"
+            COMMENT "Copying libCoolProp.so + soname/linker symlinks to Release/"
         )
     endif()
 endmacro()
