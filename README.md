@@ -74,8 +74,14 @@ git submodule update --init --recursive
 ```bash
 mkdir build
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release --parallel
+cmake --build build --config Release --parallel 2
 ```
+
+> **Note on parallelism:** CoolProp 8 uses Eigen 5, whose template-heavy headers
+> make each translation unit consume 3–5 GB of RAM during compilation. With
+> unrestricted `--parallel` (one job per CPU core) machines with ≤ 16 GB RAM can
+> run out of memory and kill the compiler. `--parallel 2` is a safe default;
+> increase it only if you have ample RAM (≥ 32 GB).
 
 ### 3. Output
 

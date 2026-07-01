@@ -82,7 +82,11 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release
 
       - name: Build (CoolProp shared lib + all MEX targets)
-        run: cmake --build build --config Release --parallel
+        # Limit to 2 parallel jobs: CoolProp 8 uses Eigen 5, whose template-heavy
+        # headers make each .cpp consume 3-5 GB of RAM during compilation. With
+        # unrestricted --parallel (4 cores) the standard 16 GB runners OOM-kill
+        # the heaviest translation units (AbstractState.cpp, HelmholtzEOS*.cpp).
+        run: cmake --build build --config Release --parallel 2
 
       - name: List Release/ output
         shell: bash
