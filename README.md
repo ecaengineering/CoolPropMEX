@@ -1,6 +1,6 @@
 # CoolProp MATLAB MEX Wrapper
 
-MATLAB MEX wrappers for [CoolProp v7.2.0](https://github.com/CoolProp/CoolProp), providing high-level and low-level thermophysical property interfaces. CoolProp is included as a git submodule and compiled together with the MEX files in a single build step.
+MATLAB MEX wrappers for [CoolProp v8.0.0](https://github.com/CoolProp/CoolProp), providing high-level and low-level thermophysical property interfaces. CoolProp is included as a git submodule and compiled together with the MEX files in a single build step.
 
 ## Features
 
@@ -12,7 +12,7 @@ MATLAB MEX wrappers for [CoolProp v7.2.0](https://github.com/CoolProp/CoolProp),
 
 ```
 CoolPropMEX/
-├── CoolProp/          # CoolProp v7.2.0 (git submodule)
+├── CoolProp/          # CoolProp v8.0.0 (git submodule)
 ├── src/               # MEX C++ source files
 │   ├── PropsSI.cpp
 │   ├── HAPropsSI.cpp
@@ -53,6 +53,7 @@ addpath('/path/to/unzipped/folder')
 - CMake 3.15 or later
 - A C++17-compatible compiler (MSVC 2019+, GCC 9+, Clang 11+)
 - Python 3 (required by CoolProp's build system to generate headers)
+- Internet access during configuration (CoolProp 8 fetches its dependencies via CPM.cmake)
 - Git
 
 ### 1. Clone with submodules
@@ -100,24 +101,24 @@ addpath('/path/to/CoolPropMEX/Release')
 
 ## Releases (CI/CD)
 
-Releases are built automatically via GitHub Actions on every version tag push. **The tag must match the CoolProp submodule version** — e.g. if the `CoolProp/` submodule is pinned to v7.2.0, the tag must be `v7.2.0`. The workflow enforces this and fails immediately if they do not match.
+Releases are built automatically via GitHub Actions on every version tag push. **The tag must match the CoolProp submodule version** — e.g. if the `CoolProp/` submodule is pinned to v8.0.0, the tag must be `v8.0.0`. The workflow enforces this and fails immediately if they do not match.
 
 ### To release for a new CoolProp version
 
 1. Update the submodule to the new CoolProp tag:
    ```bash
    cd CoolProp
-   git fetch --depth 1 origin tag v7.3.0
-   git checkout v7.3.0
+   git fetch --depth 1 origin tag v8.1.0
+   git checkout v8.1.0
    cd ..
    git add CoolProp
-   git commit -m "update CoolProp submodule to v7.3.0"
+   git commit -m "update CoolProp submodule to v8.1.0"
    ```
 
 2. Push the matching version tag:
    ```bash
-   git tag v7.3.0
-   git push origin main v7.3.0
+   git tag v8.1.0
+   git push origin main v8.1.0
    ```
 
 The workflow builds Windows, Linux, and macOS artifacts in parallel, verifies the tag matches the submodule version, then publishes a GitHub Release with all three platform zips attached.
@@ -278,11 +279,11 @@ h   = state.hmass()
 % Create state
 handle = AbstractStateMex('create', 'HEOS', 'Water');
 
-% Update state (8 = PT_INPUTS)
-AbstractStateMex('update', handle, 8, 101325, 300);
+% Update state (17 = PT_INPUTS)
+AbstractStateMex('update', handle, 17, 101325, 300);
 
-% Get mass density (iDmass = 11)
-rho = AbstractStateMex('keyed_output', handle, 11);
+% Get mass density (iDmass = 40)
+rho = AbstractStateMex('keyed_output', handle, 40);
 
 % Free state
 AbstractStateMex('free', handle);
@@ -324,7 +325,7 @@ end
 - CoolProp requires Python 3 to generate headers during configuration. Install Python 3 and ensure it is on `PATH`.
 
 **Build fails — submodules missing**
-- Run `git submodule update --init --recursive` to populate the `CoolProp/` submodule and its dependencies.
+- Run `git submodule update --init --recursive` to populate the `CoolProp/` submodule. (CoolProp 8 fetches its own dependencies via CPM.cmake at configure time, so an internet connection is required during `cmake` configuration.)
 
 ---
 

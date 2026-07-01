@@ -14,42 +14,52 @@ classdef AbstractState < handle
     
     properties (Constant)
         % Input pair constants (from DataStructures.h enum input_pairs)
+        % NB: CoolProp 8 added mass-basis quality (Qmass) input pairs,
+        %     which shifted the numeric values of all pairs after QT_INPUTS.
         INPUT_PAIR_INVALID = 0;
-        QT_INPUTS = 1;
-        PQ_INPUTS = 2;
-        QSmolar_INPUTS = 3;
-        QSmass_INPUTS = 4;
-        HmolarQ_INPUTS = 5;
-        HmassQ_INPUTS = 6;
-        DmolarQ_INPUTS = 7;
-        DmassQ_INPUTS = 8;
-        PT_INPUTS = 9;
-        DmassT_INPUTS = 10;
-        DmolarT_INPUTS = 11;
-        HmolarT_INPUTS = 12;
-        HmassT_INPUTS = 13;
-        SmolarT_INPUTS = 14;
-        SmassT_INPUTS = 15;
-        TUmolar_INPUTS = 16;
-        TUmass_INPUTS = 17;
-        DmassP_INPUTS = 18;
-        DmolarP_INPUTS = 19;
-        HmassP_INPUTS = 20;
-        HmolarP_INPUTS = 21;
-        PSmass_INPUTS = 22;
-        PSmolar_INPUTS = 23;
-        PUmass_INPUTS = 24;
-        PUmolar_INPUTS = 25;
-        HmassSmass_INPUTS = 26;
-        HmolarSmolar_INPUTS = 27;
-        SmassUmass_INPUTS = 28;
-        SmolarUmolar_INPUTS = 29;
-        DmassHmass_INPUTS = 30;
-        DmolarHmolar_INPUTS = 31;
-        DmassSmass_INPUTS = 32;
-        DmolarSmolar_INPUTS = 33;
-        DmassUmass_INPUTS = 34;
-        DmolarUmolar_INPUTS = 35;
+        QT_INPUTS = 1;             % Molar quality, Temperature [K]
+        QmassT_INPUTS = 2;         % Mass-basis quality, Temperature [K]
+        PQ_INPUTS = 3;             % Pressure [Pa], Molar quality
+        PQmass_INPUTS = 4;         % Pressure [Pa], Mass-basis quality
+        QSmolar_INPUTS = 5;        % Molar quality, Molar entropy [J/mol/K]
+        QmassSmolar_INPUTS = 6;    % Mass-basis quality, Molar entropy [J/mol/K]
+        QSmass_INPUTS = 7;         % Molar quality, Mass entropy [J/kg/K]
+        QmassSmass_INPUTS = 8;     % Mass-basis quality, Mass entropy [J/kg/K]
+        HmolarQ_INPUTS = 9;        % Molar enthalpy [J/mol], Molar quality
+        HmolarQmass_INPUTS = 10;   % Molar enthalpy [J/mol], Mass-basis quality
+        HmassQ_INPUTS = 11;        % Mass enthalpy [J/kg], Molar quality
+        HmassQmass_INPUTS = 12;    % Mass enthalpy [J/kg], Mass-basis quality
+        DmolarQ_INPUTS = 13;       % Molar density [mol/m^3], Molar quality
+        DmolarQmass_INPUTS = 14;   % Molar density [mol/m^3], Mass-basis quality
+        DmassQ_INPUTS = 15;        % Mass density [kg/m^3], Molar quality
+        DmassQmass_INPUTS = 16;    % Mass density [kg/m^3], Mass-basis quality
+        PT_INPUTS = 17;            % Pressure [Pa], Temperature [K]
+        DmassT_INPUTS = 18;        % Mass density [kg/m^3], Temperature [K]
+        DmolarT_INPUTS = 19;       % Molar density [mol/m^3], Temperature [K]
+        HmolarT_INPUTS = 20;       % Molar enthalpy [J/mol], Temperature [K]
+        HmassT_INPUTS = 21;        % Mass enthalpy [J/kg], Temperature [K]
+        SmolarT_INPUTS = 22;       % Molar entropy [J/mol/K], Temperature [K]
+        SmassT_INPUTS = 23;        % Mass entropy [J/kg/K], Temperature [K]
+        TUmolar_INPUTS = 24;       % Temperature [K], Molar internal energy [J/mol]
+        TUmass_INPUTS = 25;        % Temperature [K], Mass internal energy [J/kg]
+        DmassP_INPUTS = 26;        % Mass density [kg/m^3], Pressure [Pa]
+        DmolarP_INPUTS = 27;       % Molar density [mol/m^3], Pressure [Pa]
+        HmassP_INPUTS = 28;        % Mass enthalpy [J/kg], Pressure [Pa]
+        HmolarP_INPUTS = 29;       % Molar enthalpy [J/mol], Pressure [Pa]
+        PSmass_INPUTS = 30;        % Pressure [Pa], Mass entropy [J/kg/K]
+        PSmolar_INPUTS = 31;       % Pressure [Pa], Molar entropy [J/mol/K]
+        PUmass_INPUTS = 32;        % Pressure [Pa], Mass internal energy [J/kg]
+        PUmolar_INPUTS = 33;       % Pressure [Pa], Molar internal energy [J/mol]
+        HmassSmass_INPUTS = 34;    % Mass enthalpy [J/kg], Mass entropy [J/kg/K]
+        HmolarSmolar_INPUTS = 35;  % Molar enthalpy [J/mol], Molar entropy [J/mol/K]
+        SmassUmass_INPUTS = 36;    % Mass entropy [J/kg/K], Mass internal energy [J/kg]
+        SmolarUmolar_INPUTS = 37;  % Molar entropy [J/mol/K], Molar internal energy [J/mol]
+        DmassHmass_INPUTS = 38;    % Mass density [kg/m^3], Mass enthalpy [J/kg]
+        DmolarHmolar_INPUTS = 39;  % Molar density [mol/m^3], Molar enthalpy [J/mol]
+        DmassSmass_INPUTS = 40;    % Mass density [kg/m^3], Mass entropy [J/kg/K]
+        DmolarSmolar_INPUTS = 41;  % Molar density [mol/m^3], Molar entropy [J/mol/K]
+        DmassUmass_INPUTS = 42;    % Mass density [kg/m^3], Mass internal energy [J/kg]
+        DmolarUmolar_INPUTS = 43;  % Molar density [mol/m^3], Molar internal energy [J/mol]
         
         % Output parameter constants (from DataStructures.h enum parameters)
         INVALID_PARAMETER = 0;
@@ -77,80 +87,81 @@ classdef AbstractState < handle
         % Bulk properties
         iT = 19;           % Temperature [K]
         iP = 20;           % Pressure [Pa]
-        iQ = 21;           % Quality [0-1]
-        iTau = 22;         % Reciprocal reduced temperature
-        iDelta = 23;       % Reduced density
+        iQ = 21;           % Molar vapor quality [0-1] (alias for iQmolar)
+        iQmass = 22;       % Mass-basis vapor quality [0-1] (new in CoolProp 8)
+        iTau = 23;         % Reciprocal reduced temperature
+        iDelta = 24;       % Reduced density
         
         % Molar specific properties
-        iDmolar = 24;      % Molar density [mol/m^3]
-        iHmolar = 25;      % Molar enthalpy [J/mol]
-        iSmolar = 26;      % Molar entropy [J/mol/K]
-        iCpmolar = 27;     % Molar cp [J/mol/K]
-        iCp0molar = 28;    % Ideal gas molar cp [J/mol/K]
-        iCvmolar = 29;     % Molar cv [J/mol/K]
-        iUmolar = 30;      % Molar internal energy [J/mol]
-        iGmolar = 31;      % Molar Gibbs energy [J/mol]
-        iHelmholtzmolar = 32;  % Molar Helmholtz energy [J/mol]
-        iHmolar_residual = 33;
-        iSmolar_residual = 34;
-        iGmolar_residual = 35;
-        iHmolar_idealgas = 36;
-        iSmolar_idealgas = 37;
-        iUmolar_idealgas = 38;
+        iDmolar = 25;      % Molar density [mol/m^3]
+        iHmolar = 26;      % Molar enthalpy [J/mol]
+        iSmolar = 27;      % Molar entropy [J/mol/K]
+        iCpmolar = 28;     % Molar cp [J/mol/K]
+        iCp0molar = 29;    % Ideal gas molar cp [J/mol/K]
+        iCvmolar = 30;     % Molar cv [J/mol/K]
+        iUmolar = 31;      % Molar internal energy [J/mol]
+        iGmolar = 32;      % Molar Gibbs energy [J/mol]
+        iHelmholtzmolar = 33;  % Molar Helmholtz energy [J/mol]
+        iHmolar_residual = 34;
+        iSmolar_residual = 35;
+        iGmolar_residual = 36;
+        iHmolar_idealgas = 37;
+        iSmolar_idealgas = 38;
+        iUmolar_idealgas = 39;
         
         % Mass specific properties
-        iDmass = 39;       % Mass density [kg/m^3]
-        iHmass = 40;       % Mass enthalpy [J/kg]
-        iSmass = 41;       % Mass entropy [J/kg/K]
-        iCpmass = 42;      % Mass cp [J/kg/K]
-        iCp0mass = 43;     % Ideal gas mass cp [J/kg/K]
-        iCvmass = 44;      % Mass cv [J/kg/K]
-        iUmass = 45;       % Mass internal energy [J/kg]
-        iGmass = 46;       % Mass Gibbs energy [J/kg]
-        iHelmholtzmass = 47;  % Mass Helmholtz energy [J/kg]
-        iHmass_idealgas = 48;
-        iSmass_idealgas = 49;
-        iUmass_idealgas = 50;
+        iDmass = 40;       % Mass density [kg/m^3]
+        iHmass = 41;       % Mass enthalpy [J/kg]
+        iSmass = 42;       % Mass entropy [J/kg/K]
+        iCpmass = 43;      % Mass cp [J/kg/K]
+        iCp0mass = 44;     % Ideal gas mass cp [J/kg/K]
+        iCvmass = 45;      % Mass cv [J/kg/K]
+        iUmass = 46;       % Mass internal energy [J/kg]
+        iGmass = 47;       % Mass Gibbs energy [J/kg]
+        iHelmholtzmass = 48;  % Mass Helmholtz energy [J/kg]
+        iHmass_idealgas = 49;
+        iSmass_idealgas = 50;
+        iUmass_idealgas = 51;
         
         % Transport properties
-        iviscosity = 51;   % Viscosity [Pa-s]
-        iconductivity = 52;  % Thermal conductivity [W/m/K]
-        isurface_tension = 53;  % Surface tension [N/m]
-        iPrandtl = 54;     % Prandtl number
+        iviscosity = 52;   % Viscosity [Pa-s]
+        iconductivity = 53;  % Thermal conductivity [W/m/K]
+        isurface_tension = 54;  % Surface tension [N/m]
+        iPrandtl = 55;     % Prandtl number
         
         % Derivative-based properties
-        ispeed_sound = 55;  % Speed of sound [m/s]
-        iisothermal_compressibility = 56;
-        iisobaric_expansion_coefficient = 57;
-        iisentropic_expansion_coefficient = 58;
+        ispeed_sound = 56;  % Speed of sound [m/s]
+        iisothermal_compressibility = 57;
+        iisobaric_expansion_coefficient = 58;
+        iisentropic_expansion_coefficient = 59;
         
         % Other properties
-        ifundamental_derivative_of_gas_dynamics = 59;
-        ialphar = 60;
-        idalphar_dtau_constdelta = 61;
-        idalphar_ddelta_consttau = 62;
-        ialpha0 = 63;
-        idalpha0_dtau_constdelta = 64;
-        idalpha0_ddelta_consttau = 65;
-        id2alpha0_ddelta2_consttau = 66;
-        id3alpha0_ddelta3_consttau = 67;
-        iBvirial = 68;     % Second virial coefficient
-        iCvirial = 69;     % Third virial coefficient
-        idBvirial_dT = 70;
-        idCvirial_dT = 71;
-        iZ = 72;           % Compressibility factor
-        iPIP = 73;
-        ifraction_min = 74;
-        ifraction_max = 75;
-        iT_freeze = 76;
-        iGWP20 = 77;
-        iGWP100 = 78;
-        iGWP500 = 79;
-        iFH = 80;
-        iHH = 81;
-        iPH = 82;
-        iODP = 83;
-        iPhase = 84;
+        ifundamental_derivative_of_gas_dynamics = 60;
+        ialphar = 61;
+        idalphar_dtau_constdelta = 62;
+        idalphar_ddelta_consttau = 63;
+        ialpha0 = 64;
+        idalpha0_dtau_constdelta = 65;
+        idalpha0_ddelta_consttau = 66;
+        id2alpha0_ddelta2_consttau = 67;
+        id3alpha0_ddelta3_consttau = 68;
+        iBvirial = 69;     % Second virial coefficient
+        iCvirial = 70;     % Third virial coefficient
+        idBvirial_dT = 71;
+        idCvirial_dT = 72;
+        iZ = 73;           % Compressibility factor
+        iPIP = 74;
+        ifraction_min = 75;
+        ifraction_max = 76;
+        iT_freeze = 77;
+        iGWP20 = 78;
+        iGWP100 = 79;
+        iGWP500 = 80;
+        iFH = 81;
+        iHH = 82;
+        iPH = 83;
+        iODP = 84;
+        iPhase = 85;
     end
     
     methods
@@ -277,6 +288,7 @@ classdef AbstractState < handle
         function val = cvmolar(obj), val = obj.keyed_output(obj.iCvmolar); end
         function val = cvmass(obj), val = obj.keyed_output(obj.iCvmass); end
         function val = Q(obj), val = obj.keyed_output(obj.iQ); end
+        function val = Qmass(obj), val = obj.keyed_output(obj.iQmass); end
         function val = viscosity(obj), val = obj.keyed_output(obj.iviscosity); end
         function val = conductivity(obj), val = obj.keyed_output(obj.iconductivity); end
         function val = speed_sound(obj), val = obj.keyed_output(obj.ispeed_sound); end

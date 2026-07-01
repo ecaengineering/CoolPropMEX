@@ -138,7 +138,7 @@ jobs:
             exit 1
           fi
           echo "Versioned file: $VERSIONED"
-          # Extract major version for soname (e.g. libCoolProp.so.7.2.0 -> libCoolProp.so.7)
+          # Extract major version for soname (e.g. libCoolProp.so.8.0.0 -> libCoolProp.so.8)
           MAJOR=$(echo "$VERSIONED" | grep -oP 'libCoolProp\.so\.\K[0-9]+')
           SONAME="libCoolProp.so.${MAJOR}"
           echo "Creating symlinks: $SONAME -> $VERSIONED  and  libCoolProp.so -> $VERSIONED"

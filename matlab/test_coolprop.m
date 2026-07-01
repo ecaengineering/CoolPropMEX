@@ -21,7 +21,7 @@ fprintf('Dew point temperature: %.2f K\n', T_dp);
 fprintf('\n=== Testing AbstractState class ===\n');
 state = AbstractState('HEOS', 'Water');
 
-% Update with PT_INPUTS (now correctly = 9)
+% Update with PT_INPUTS (now correctly = 17)
 state.update(AbstractState.PT_INPUTS, 101325, 300);
 
 fprintf('Using PT_INPUTS = %d\n', AbstractState.PT_INPUTS);
