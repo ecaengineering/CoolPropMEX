@@ -47,6 +47,34 @@ macro(add_mex_target MEX_NAME)
         )
     endif()
 
+    # macOS: embed RPATH so libCoolProp.dylib and MATLAB's own libs are found
+    # at runtime. Without BUILD_WITH_INSTALL_RPATH, CMake bakes in the
+    # *build-tree* RPATH (absolute paths to wherever find_package(Matlab)
+    # found MATLAB and where the CoolProp target was built — e.g. GitHub
+    # Actions' /Users/runner/hostedtoolcache/... and /Users/runner/work/...
+    # paths). These targets are never `cmake --install`ed (they're copied
+    # straight to Release/ via RUNTIME_OUTPUT_DIRECTORY), so that build-tree
+    # RPATH would otherwise ship permanently in the released binary and break
+    # on every machine except the CI runner that built it.
+    #   - @loader_path (macOS equivalent of Linux's $ORIGIN) resolves
+    #     libCoolProp.dylib, which is copied next to the .mexmaca64.
+    #   - libmex/libmx/libMatlabDataArray already resolve via the RPATH
+    #     MATLAB's own process embeds for its bin/maca64 directory (inherited
+    #     by dlopen through the loader chain), so we don't need our own entry
+    #     for those.
+    #   - libMatlabEngine.dylib, however, lives only in MATLAB's
+    #     extern/bin/maca64, which is NOT covered by that inherited RPATH.
+    #     @executable_path resolves to the directory of MATLAB's own main
+    #     executable (bin/maca64) at runtime, wherever the end user installed
+    #     MATLAB — so "@executable_path/../../extern/bin/maca64" reaches the
+    #     sibling extern/bin/maca64 folder without hardcoding any install path.
+    if(APPLE)
+        set_target_properties(${MEX_NAME} PROPERTIES
+            BUILD_WITH_INSTALL_RPATH TRUE
+            INSTALL_RPATH            "@loader_path;@executable_path/../../extern/bin/maca64"
+        )
+    endif()
+
     # Linux: embed RPATH so the .so is found next to the .mexa64
     if(UNIX AND NOT APPLE)
         set_target_properties(${MEX_NAME} PROPERTIES

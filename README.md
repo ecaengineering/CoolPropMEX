@@ -333,6 +333,19 @@ end
 **Build fails — submodules missing**
 - Run `git submodule update --init --recursive` to populate the `CoolProp/` submodule. (CoolProp 8 fetches its own dependencies via CPM.cmake at configure time, so an internet connection is required during `cmake` configuration.)
 
+**macOS — "Invalid MEX-file ... code signature ... library load disallowed by system policy"**
+- This happens because files downloaded through a browser get a `com.apple.quarantine` attribute, and the released binaries are only ad-hoc signed (not notarized with a paid Apple Developer ID). Gatekeeper blocks quarantined, non-notarized binaries from loading.
+- Fix: remove the quarantine attribute and re-sign the files locally after unzipping:
+  ```bash
+  cd /path/to/unzipped/CoolPropMEX-macos
+  xattr -dr com.apple.quarantine .
+  codesign --force --deep --sign - *.mexmaca64 libCoolProp.dylib
+  ```
+- This is a one-time step per download. It's safe because you're signing the binaries yourself locally (ad-hoc signature), not bypassing verification of a binary from an untrusted source.
+
+**macOS — "Library not loaded: @rpath/libMatlabEngine.dylib"**
+- Fixed as of the current `CMakeLists.txt` (macOS builds now embed a portable `@loader_path` / `@executable_path`-relative `RPATH` instead of the build machine's absolute paths). If you still see this on a binary built before this fix, rebuild from source or download the latest release.
+
 ---
 
 ## License
