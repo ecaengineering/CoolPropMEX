@@ -27,8 +27,28 @@ macro(add_mex_target MEX_NAME)
     matlab_add_mex(
         NAME    ${MEX_NAME}
         SRC     src/${MEX_NAME}.cpp
-        LINK_TO CoolProp
+        NO_IMPLICIT_LINK_TO_MATLAB_LIBRARIES
     )
+
+    target_link_directories(${MEX_NAME} PRIVATE
+        "${Matlab_ROOT_DIR}/bin/glnxa64"
+    )
+
+    if(UNIX AND NOT APPLE)
+        target_link_libraries(${MEX_NAME}
+            CoolProp
+            mex
+            mx
+        )
+    else()
+        target_link_libraries(${MEX_NAME}
+            CoolProp
+            Matlab::mex
+            Matlab::mx
+        )
+    endif()
+
+    target_include_directories(${MEX_NAME} PRIVATE include)
 
     # Compiler flags
     if(MSVC)
