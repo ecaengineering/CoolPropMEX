@@ -30,6 +30,8 @@ macro(add_mex_target MEX_NAME)
         LINK_TO CoolProp
     )
 
+    target_include_directories(${MEX_NAME} PRIVATE include)
+
     # Compiler flags
     if(MSVC)
         target_compile_options(${MEX_NAME} PRIVATE /utf-8)
