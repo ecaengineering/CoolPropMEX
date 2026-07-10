@@ -23,12 +23,45 @@ find_package(Matlab REQUIRED COMPONENTS MX_LIBRARY)
 # ---------------------------------------------------------------------------
 # Helper macro: create one MEX target
 # ---------------------------------------------------------------------------
-macro(add_mex_target MEX_NAME)
+macro(add_mex_target MEX_NAME)    
     matlab_add_mex(
         NAME    ${MEX_NAME}
         SRC     src/${MEX_NAME}.cpp
-        LINK_TO CoolProp
+        NO_IMPLICIT_LINK_TO_MATLAB_LIBRARIES
     )
+
+    target_link_directories(${MEX_NAME} PRIVATE
+        "${Matlab_ROOT_DIR}/bin/glnxa64"
+    )
+
+    if(UNIX AND NOT APPLE)
+        # MATLAB's libmex.so/libmx.so on Linux don't carry a proper SONAME.
+        # Linking them via their imported targets (Matlab::mex/Matlab::mx)
+        # uses an absolute IMPORTED_LOCATION path, and with no SONAME to
+        # fall back on, the linker bakes that exact absolute build-machine
+        # path (e.g. /opt/hostedtoolcache/.../bin/glnxa64/libmex.so) straight
+        # into DT_NEEDED. That breaks on any machine where MATLAB isn't
+        # installed at that exact path.
+        #
+        # Linking the bare names instead (resolved via the
+        # target_link_directories() -L entry above, i.e. -lmex -lmx) makes
+        # the linker record just "libmex.so"/"libmx.so" — consistent with
+        # libCoolProp.so.8, which gets its short NEEDED name from its own
+        # SONAME. At runtime MATLAB adds its own bin/glnxa64 to the loader's
+        # search path before dlopen-ing the MEX file, so the bare names
+        # resolve fine without needing an RPATH entry of our own for them.
+        target_link_libraries(${MEX_NAME}
+            CoolProp
+            mex
+            mx
+        )
+    else()
+        target_link_libraries(${MEX_NAME}
+            CoolProp
+            Matlab::mex
+            Matlab::mx
+        )
+    endif()
 
     target_include_directories(${MEX_NAME} PRIVATE include)
 
