@@ -2,6 +2,7 @@
 #include <map>
 #include <string>
 #include <cstring>
+#include "mex_string_util.h"
 
 extern "C" {
 #include "CoolPropLib.h"
@@ -10,27 +11,6 @@ extern "C" {
 // Global storage for AbstractState handles
 static std::map<long, bool> activeHandles;
 static long nextId = 1;
-
-// Helper function to convert MATLAB string or char array to C string
-char* getString(const mxArray *arr) {
-    if (mxIsChar(arr)) {
-        // Traditional char array
-        return mxArrayToString(arr);
-    } else if (mxIsClass(arr, "string")) {
-        // MATLAB string (R2016b+)
-        mxArray *charArray = mxGetProperty(arr, 0, "StringData");
-        if (charArray == NULL) {
-            // Try alternative method for string conversion
-            mxArray *lhs[1];
-            mxArray *rhs[1];
-            rhs[0] = const_cast<mxArray*>(arr);
-            if (mexCallMATLAB(1, lhs, 1, rhs, "char") == 0) {
-                return mxArrayToString(lhs[0]);
-            }
-        }
-    }
-    return NULL;
-}
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
